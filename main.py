@@ -35,6 +35,18 @@ def get_schedule(user_type, user_id):
     cursor.close()
     connection.close()
 
+def get_assignment_grades(student_id, course_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+    query = f"CALL GetAssignmentGrades({student_id}, {course_id});"
+    cursor.execute(query)
+    print("\nAssignment Grades:\n" + "-"*40)
+    for row in cursor:
+        print(f"Assignment: {row[2]}")
+        print(f"Grade: {row[3]}")
+        print("-" * 40)
+    cursor.close()
+    connection.close()
 def main():
     print("Welcome! Please log in.")
     user_type = input("Are you a Teacher or a Student? ").strip().lower()
@@ -45,6 +57,9 @@ def main():
 
     user_id = input(f"Enter your {user_type.capitalize()} ID: ")
     get_schedule(user_type, user_id)
+    if (user_type == "student"):
+        course_id = int(input("Enter Course ID: "))
+        get_assignment_grades(user_id, course_id)
 
 if __name__ == "__main__":
     main()
