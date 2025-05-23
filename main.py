@@ -6,6 +6,23 @@ def create_connection():
                                    host='10.8.37.226',
                                    database='xinpengg_db')
 
+
+def get_final_grade(student_id, course_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = f"CALL CalculateFinalGrade({student_id}, {course_id});"
+    cursor.execute(query)
+
+    print("\nFinal Grade:\n" + "-" * 30)
+    for row in cursor:
+        print(f"Student ID: {row[0]}")
+        print(f"Course ID: {row[1]}")
+        print(f"Overall Grade: {round(row[2])}")
+        print("-" * 30)
+
+    cursor.close()
+    connection.close()
 def get_schedule(user_type, user_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -14,16 +31,16 @@ def get_schedule(user_type, user_id):
         query = f"CALL GetTeacherCourses({user_id});"
     else:
         query = f"CALL GetStudentSchedule({user_id});"
-
     cursor.execute(query)
 
     print("\nSchedule:\n" + "-"*30)
     if user_type.lower() == "student":
         for row in cursor:
-            print(f"Period: {row[1]}")
-            print(f"Course: {row[0]}")
-            print(f"Room: {row[2]}")
-            print(f"Teacher: {row[3]}")
+            print(f"Course ID: {row[0]}")
+            print(f"Course: {row[1]}")
+            print(f"Period: {row[2]}")
+            print(f"Room: {row[3]}")
+            print(f"Teacher: {row[4]}")
             print("-" * 30)
 
     else:
@@ -60,6 +77,7 @@ def main():
     if (user_type == "student"):
         course_id = int(input("Enter Course ID: "))
         get_assignment_grades(user_id, course_id)
+        get_final_grade(user_id, course_id)
 
 if __name__ == "__main__":
     main()
