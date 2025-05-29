@@ -1,6 +1,4 @@
 import mysql.connector
-
-
 def create_connection():
     return mysql.connector.connect(user='xinpengg',
                                    password='221199375',
@@ -65,9 +63,10 @@ def get_assignment_grades(student_id, course_id):
 
     print("\nAssignment Grades:\n" + "-" * 40)
     for row in cursor:
-        print(f"Assignment: {row[2]}")
-        print(f"Grade: {row[4]}")
-        print("-" * 40)
+        print(row)
+        # print(f"Assignment: {row[2]}")
+        # print(f"Grade: {row[4]}")
+        # print("-" * 40)
 
     cursor.close()
     connection.close()
@@ -82,6 +81,7 @@ def get_total_average(student_id):
         cursor.execute(query)
 
         for row in cursor.fetchall():
+
             print(f"Student ID: {row[0]}")
             print(f"Weighted GPA: {round(row[1], 2)}")
 
@@ -143,8 +143,33 @@ def get_student_assignment_grades(course_id, assignment_id):
     print("\nStudent Assignment Grades:\n" + "-" * 40)
     for row in cursor:
         print(f"Student ID: {row[0]}")
-        print(f"Grade: {row[1]}")
+        print(f"Student Name: {row[1]}")
+        print(f"Student Grade Assignment: {row[2]}")
         print("-" * 40)
+    cursor.close()
+    connection.close()
+def add_assignment(name, assignment_type, course_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = f"CALL AddAssignment('{name}', {assignment_type}, {course_id});"
+    cursor.execute(query)
+    connection.commit()
+
+    print(f"\nAssignment '{name}' added successfully!\n" + "-" * 30)
+
+    cursor.close()
+    connection.close()
+
+def update_grade(student_id, course_id, assignment_id, grade):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = f"CALL UpdateGrade({student_id}, {course_id}, {assignment_id}, '{grade}');"
+    cursor.execute(query)
+    connection.commit()
+
+    print(f"\nGrade updated for Student {student_id}, Assignment {assignment_id}!\n" + "-" * 30)
 
     cursor.close()
     connection.close()
@@ -152,29 +177,61 @@ def get_student_assignment_grades(course_id, assignment_id):
 
 def main():
     print("Welcome! Please log in.")
-    user_type = input("Are you a Teacher or a Student? ").strip().lower()
 
-    if user_type not in ["teacher", "student"]:
-        print("Invalid input. Please restart and enter 'Teacher' or 'Student'.")
-        return
+    while True:
+        user_type = input("Are you a Teacher or a Student? (Type 'exit' to quit) ").strip().lower()
 
-    user_id = input(f"Enter your {user_type.capitalize()} ID: ")
-    get_schedule(user_type, user_id)
+        if user_type == "exit":
+            print("Goodbye!")
+            break
 
-    if user_type == "student":
-        course_id = int(input("Enter Course ID: "))
-        get_assignment_grades(user_id, course_id)
-        get_final_grade(user_id, course_id)
-        get_total_average(user_id)
+        if user_type not in ["teacher", "student"]:
+            print("Invalid input. Please enter 'Teacher' or 'Student'.")
+            continue
 
-    elif user_type == "teacher":
-        course_id = int(input("Enter Course ID to view assignments: "))
-        assignments = get_course_assignments(course_id)
+        user_id = input(f"Enter your {user_type.capitalize()} ID: ")
+        get_schedule(user_type, user_id)
 
-        if assignments:
-            assignment_id = int(input("Enter Assignment ID to view student grades: "))
-            get_student_assignment_grades(course_id, assignment_id)
+        if user_type == "student":
+            course_id = int(input("Enter Course ID: "))
+            get_assignment_grades(user_id, course_id)
+            get_final_grade(user_id, course_id)
+            get_total_average(user_id)
 
+        elif user_type == "teacher":
+            while True:
+                print("\nTeacher Options:")
+                print("1. View Assignments")
+                print("2. Add an Assignment")
+                print("3. Update a Grade")
+                print("4. Exit")
+                option = input("Select an option: ").strip()
+
+                if option == "4":
+                    print("Returning to main menu...")
+                    break
+
+                course_id = int(input("Enter Course ID: "))
+
+                if option == "1":
+                    assignments = get_course_assignments(course_id)
+                    if assignments:
+                        assignment_id = int(input("Enter Assignment ID to view student grades: "))
+                        get_student_assignment_grades(course_id, assignment_id)
+
+                elif option == "2":
+                    assignment_name = input("Enter Assignment Name: ")
+                    assignment_type = int(input("Enter Assignment Type ID (1 = Minor, 2 = Major): "))
+                    add_assignment(assignment_name, assignment_type, course_id)
+
+                elif option == "3":
+                    student_id = int(input("Enter Student ID: "))
+                    assignment_id = int(input("Enter Assignment ID: "))
+                    grade = input("Enter New Grade: ")
+                    update_grade(student_id, course_id, assignment_id, grade)
+
+                else:
+                    print("Invalid option. Please try again.")
 
 if __name__ == "__main__":
     main()
