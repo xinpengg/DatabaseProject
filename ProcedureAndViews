@@ -1,0 +1,302 @@
+SHOW CREATE PROCEDURE AddAssignment;
+SHOW CREATE PROCEDURE AddStudentToClass;
+SHOW CREATE PROCEDURE CalculateFinalGrade;
+SHOW CREATE PROCEDURE CalculatesTotalAverage;
+SHOW CREATE PROCEDURE GetAssignmentGrades;
+SHOW CREATE PROCEDURE GetCourseAssignments;
+SHOW CREATE PROCEDURE GetStudentAssignment;
+SHOW CREATE PROCEDURE GetStudentAssignmentGrades;
+SHOW CREATE PROCEDURE GetStudentSchedule;
+SHOW CREATE PROCEDURE GetStudentsInCourse;
+SHOW CREATE PROCEDURE GetTeacherCourses;
+SHOW CREATE PROCEDURE GetTeachers;
+SHOW CREATE PROCEDURE GetTotalAssignments;
+SHOW CREATE PROCEDURE RemoveStudentFromClass;
+SHOW CREATE PROCEDURE UpdateGrade;
+
+DELIMITER //
+
+CREATE PROCEDURE AddAssignment(
+    IN p_name VARCHAR(255),
+    IN p_assignment_type INT,
+    IN p_course_id INT
+)
+BEGIN
+    DECLARE new_assignment_id INT;
+    SELECT COALESCE(MAX(assignment_id), 0) + 1 INTO new_assignment_id FROM Assignments;
+
+    INSERT INTO Assignments (assignment_id, name, assignment_type, course_id)
+    VALUES (new_assignment_id, p_name, p_assignment_type, p_course_id);
+
+    INSERT INTO Assignment_grade (assignment_id, student_id, grade)
+    SELECT new_assignment_id, student_id, '75'
+    FROM Rosters
+    WHERE course_period_id IN (SELECT course_period_id FROM Course_period WHERE course_id = p_course_id);
+END //
+
+DELIMITER ;
+
+-- Procedure for Adding a Student to a Class
+DELIMITER //
+
+CREATE PROCEDURE AddStudentToClass(
+    IN student_id INT,
+    IN course_period_id INT
+)
+BEGIN
+    INSERT INTO Rosters (course_period_id, student_id)
+    VALUES (course_period_id, student_id);
+END //
+
+DELIMITER ;
+
+-- Procedure for Calculating the Final Grade
+DELIMITER //
+
+CREATE PROCEDURE CalculateFinalGrade(
+    IN studentID INT,
+    IN courseID INT
+)
+BEGIN
+    DECLARE final_grade FLOAT;
+    SELECT SUM(weighted_grade) INTO final_grade FROM WeightedGrades WHERE student_id = studentID AND course_id = courseID;
+    SELECT studentID AS student_id, courseID AS course_id, final_grade AS overall_grade;
+END //
+
+DELIMITER ;
+
+-- Procedure for Calculating the Total Average Grade
+DELIMITER //
+
+CREATE PROCEDURE CalculateTotalAverage(
+    IN studentID INT
+)
+BEGIN
+    DECLARE total_weighted FLOAT DEFAULT 0;
+    DECLARE course_count INT DEFAULT 0;
+    DECLARE ap_multiplier FLOAT DEFAULT 1.1;
+
+    SELECT SUM(wg.weighted_grade * (CASE WHEN ct.type_id = 1 THEN ap_multiplier ELSE 1 END)),
+           COUNT(DISTINCT wg.course_id)
+    INTO total_weighted, course_count
+    FROM WeightedGrades wg
+    JOIN Courses c ON wg.course_id = c.course_id
+    JOIN Course_Types ct ON c.type_id = ct.type_id
+    WHERE wg.student_id = studentID;
+
+    SELECT studentID AS student_id, IF(course_count > 0, total_weighted / course_count, 0) AS total_average;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Assignment Grades
+DELIMITER //
+
+CREATE PROCEDURE GetAssignmentGrades(
+    IN p_student_id INT,
+    IN p_course_id INT
+)
+BEGIN
+    SELECT * FROM AssignmentGrades WHERE student_id = p_student_id AND course_id = p_course_id;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Course Assignments
+DELIMITER //
+
+CREATE PROCEDURE GetCourseAssignments(
+    IN CourseID INT
+)
+BEGIN
+    SELECT assignment_id, name AS assignment_name, assignment_type FROM Assignments WHERE course_id = CourseID ORDER BY assignment_id;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Student Assignment Details
+DELIMITER //
+
+CREATE PROCEDURE GetStudentAssignment(
+    IN CourseID INT,
+    IN AssignmentID INT
+)
+BEGIN
+    SELECT DISTINCT ag.student_id FROM AssignmentGrades ag
+    JOIN Assignments a ON ag.course_id = a.course_id AND ag.assignment_name = a.name
+    WHERE a.course_id = CourseID AND a.assignment_id = AssignmentID;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Student Assignment Grades
+DELIMITER //
+
+CREATE PROCEDURE GetStudentAssignmentGrades(
+    IN course_id INT,
+    IN assignment_id INT
+)
+BEGIN
+    SELECT s.student_id, s.name AS student_name, ag.grade
+    FROM Assignment_grade ag
+    JOIN Students s ON ag.student_id = s.student_id
+    JOIN Assignments a ON ag.assignment_id = a.assignment_id
+    WHERE a.course_id = course_id AND a.assignment_id = assignment_id;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting a Student’s Schedule
+DELIMITER //
+
+CREATE PROCEDURE GetStudentSchedule(
+    IN studentID INT
+)
+BEGIN
+    SELECT course_id, course_name, period, room, teacher_name
+    FROM student_schedule WHERE student_id = studentID ORDER BY period ASC;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Students in a Course
+DELIMITER //
+
+CREATE PROCEDURE GetStudentsInCourse(
+    IN CourseID INT
+)
+BEGIN
+    SELECT DISTINCT student_id FROM AssignmentGrades WHERE course_id = CourseID ORDER BY student_id;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Teacher Courses
+DELIMITER //
+
+CREATE PROCEDURE GetTeacherCourses(
+    IN TeacherID INT
+)
+BEGIN
+    SELECT course_id, course_name, period
+    FROM View_Teacher_Courses
+    WHERE name = (SELECT name FROM Teachers WHERE teacher_id = TeacherID);
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Teachers
+DELIMITER //
+
+CREATE PROCEDURE GetTeachers(
+    IN department VARCHAR(100)
+)
+BEGIN
+    SELECT Teachers.name AS teacher_name, Departments.name AS department_name
+    FROM Teachers
+    INNER JOIN Departments ON Teachers.department_id = Departments.department_id
+    WHERE Departments.name = department;
+END //
+
+DELIMITER ;
+
+-- Procedure for Getting Total Assignments for a Student
+DELIMITER //
+
+CREATE PROCEDURE GetTotalAssignments(
+    IN student_id INT,
+    IN course_id INT
+)
+BEGIN
+    SELECT COUNT(a.assignment_id) AS total_assignments
+    FROM Assignments a
+    JOIN Assignment_grade ag ON a.assignment_id = ag.assignment_id
+    WHERE ag.student_id = student_id AND a.course_id = course_id;
+END //
+
+DELIMITER ;
+
+
+-- Procedure for Updating a Grade
+DELIMITER //
+
+CREATE PROCEDURE UpdateGrade(
+    IN p_student_id INT,
+    IN p_assignment_id INT,
+    IN p_grade VARCHAR(5)
+)
+BEGIN
+    UPDATE Assignment_grade SET grade = p_grade WHERE student_id = p_student_id AND assignment_id = p_assignment_id;
+END //
+
+DELIMITER ;
+
+CREATE VIEW AssignmentGrades AS
+SELECT
+    ag.student_id,
+    a.course_id,
+    a.name AS assignment_name,
+    a.assignment_type AS assessment_type_id,
+    ag.grade
+FROM Assignment_grade ag
+JOIN Assignments a ON ag.assignment_id = a.assignment_id;
+
+CREATE VIEW StudentFinalGrades AS
+SELECT
+    fg.student_id,
+    fg.course_id,
+    fg.overall_grade,
+    CASE
+        WHEN c.type_id = 1 THEN fg.overall_grade * 1.1
+        ELSE fg.overall_grade
+    END AS weighted_grade
+FROM FinalGrades fg
+JOIN Courses c ON fg.course_id = c.course_id;
+
+CREATE VIEW Teacher_Info AS
+SELECT
+    Teachers.name AS teacher_name,
+    Departments.name AS department_name
+FROM Teachers
+JOIN Departments ON Teachers.department_id = Departments.department_id;
+
+CREATE VIEW View_Teacher_Courses AS
+SELECT DISTINCT
+    C.course_id,
+    C.course_name,
+    CP.period,
+    T.name
+FROM Teachers T
+JOIN Course_period CP ON T.teacher_id = CP.teacher_id
+JOIN Courses C ON CP.course_id = C.course_id
+ORDER BY CP.period;
+
+CREATE VIEW WeightedGrades AS
+SELECT
+    ag.student_id,
+    a.course_id,
+    a.assignment_type,
+    AVG(ag.grade) AS avg_grade,
+    CASE
+        WHEN a.assignment_type = 2 THEN AVG(ag.grade) * 0.7
+        WHEN a.assignment_type = 1 THEN AVG(ag.grade) * 0.3
+        ELSE 0
+    END AS weighted_grade
+FROM Assignment_grade ag
+JOIN Assignments a ON ag.assignment_id = a.assignment_id
+GROUP BY ag.student_id, a.course_id, a.assignment_type;
+
+CREATE VIEW student_schedule AS
+SELECT
+    R.student_id,
+    C.course_id,
+    C.course_name,
+    CP.period,
+    CP.room,
+    T.name AS teacher_name
+FROM Rosters R
+JOIN Course_period CP ON R.course_period_id = CP.course_period_id
+JOIN Courses C ON CP.course_id = C.course_id
+JOIN Teachers T ON CP.teacher_id = T.teacher_id
+ORDER BY CP.period;
+
