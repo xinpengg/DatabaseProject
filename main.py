@@ -62,11 +62,17 @@ def get_assignment_grades(student_id, course_id):
     cursor.execute(query)
 
     print("\nAssignment Grades:\n" + "-" * 40)
+    row = cursor.fetchone()  # Fetch a single row
+    if row:
+        print(f"Grades for Student ID: {row[0]} and Course {row[1]}")
     for row in cursor:
-        print(row)
-        # print(f"Assignment: {row[2]}")
-        # print(f"Grade: {row[4]}")
-        # print("-" * 40)
+        print(f"Assignment: {row[2]}")
+        if (row[3] == 1):
+            print("Minor Assessments")
+        elif (row[3] == 2):
+            print("Major Assessments")
+        print(f"Grade: {row[4]}")
+        print("-" * 40)
 
     cursor.close()
     connection.close()
