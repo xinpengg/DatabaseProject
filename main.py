@@ -181,35 +181,114 @@ def update_grade(student_id, course_id, assignment_id, grade):
     connection.close()
 
 
+def add_student_to_class(student_id, course_period_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+    try:
+        cursor.execute("CALL AddStudentToClass(%s, %s);", (student_id, course_period_id))
+        connection.commit()
+        print(f"Student {student_id} successfully added to Course {course_period_id}.")
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+    finally:
+        cursor.close()
+        connection.close()
+
+def remove_student_from_class(course_period_id, student_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+    try:
+        cursor.execute("CALL RemoveStudentFromClass(%s, %s);", (course_period_id, student_id))
+        connection.commit()
+        print(f"Student {student_id} successfully removed from Course {course_period_id}.")
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+    finally:
+        cursor.close()
+        connection.close()
+
 def main():
     print("Welcome! Please log in.")
 
     while True:
-        user_type = input("Are you a Teacher or a Student? (Type 'exit' to quit) ").strip().lower()
+        user_type = input("Are you a Student, Teacher, or Administrator? (Type 'exit' to quit) ").strip().lower()
 
         if user_type == "exit":
             print("Goodbye!")
             break
 
-        if user_type not in ["teacher", "student"]:
-            print("Invalid input. Please enter 'Teacher' or 'Student'.")
+        if user_type not in ["student", "teacher", "administrator"]:
+            print("Invalid input. Please enter 'Student', 'Teacher', or 'Administrator'.")
             continue
 
         user_id = input(f"Enter your {user_type.capitalize()} ID: ")
-        get_schedule(user_type, user_id)
 
         if user_type == "student":
-            course_id = int(input("Enter Course ID: "))
-            get_assignment_grades(user_id, course_id)
-            get_final_grade(user_id, course_id)
-            get_total_average(user_id)
+            while True:
+                print("\nStudent Menu:")
+                print("1. View Schedule")
+                print("2. View Grades for a Class")
+                print("3. View Final Grade")
+                print("4. View Total Average")
+                print("5. Exit")
+                option = input("Select an option: ").strip()
+
+                if option == "5":
+                    print("Returning to main menu...")
+                    break
+
+                course_id = int(input("Enter Course ID: ")) if option in ["2", "3"] else None
+
+                if option == "1":
+                    get_schedule(user_type, user_id)
+                elif option == "2":
+                    get_assignment_grades(user_id, course_id)
+                elif option == "3":
+                    get_final_grade(user_id, course_id)
+                elif option == "4":
+                    get_total_average(user_id)
+                else:
+                    print("Invalid option. Try again.")
 
         elif user_type == "teacher":
             while True:
-                print("\nTeacher Options:")
-                print("1. View Assignments")
-                print("2. Add an Assignment")
-                print("3. Update a Grade")
+                print("\nTeacher Menu:")
+                print("1. View Schedule")
+                print("2. View Student Grades for Assignment")
+                print("3. Add an Assignment")
+                print("4. Update a Grade")
+                print("5. Exit")
+                option = input("Select an option: ").strip()
+
+                if option == "5":
+                    print("Returning to main menu...")
+                    break
+
+                course_id = int(input("Enter Course ID: ")) if option in ["2", "3", "4"] else None
+
+                if option == "1":
+                    get_schedule(user_type, user_id)
+                elif option == "2":
+                    assignment_id = int(input("Enter Assignment ID: "))
+                    get_student_assignment_grades(course_id, assignment_id)
+                elif option == "3":
+                    assignment_name = input("Enter Assignment Name: ")
+                    assignment_type = int(input("Enter Assignment Type ID (1 = Minor, 2 = Major): "))
+                    add_assignment(assignment_name, assignment_type, course_id)
+                elif option == "4":
+                    student_id = int(input("Enter Student ID: "))
+                    assignment_id = int(input("Enter Assignment ID: "))
+                    grade = input("Enter New Grade: ")
+                    update_grade(student_id, course_id, assignment_id, grade)
+                else:
+                    print("Invalid option. Try again.")
+
+        elif user_type == "administrator":
+            while True:
+                print("\nAdministrator Menu:")
+                print("1. Add Student to Class")
+                print("2. Remove Student from Class")
+                print("3. Create New Class")
                 print("4. Exit")
                 option = input("Select an option: ").strip()
 
@@ -217,27 +296,21 @@ def main():
                     print("Returning to main menu...")
                     break
 
-                course_id = int(input("Enter Course ID: "))
-
                 if option == "1":
-                    assignments = get_course_assignments(course_id)
-                    if assignments:
-                        assignment_id = int(input("Enter Assignment ID to view student grades: "))
-                        get_student_assignment_grades(course_id, assignment_id)
-
-                elif option == "2":
-                    assignment_name = input("Enter Assignment Name: ")
-                    assignment_type = int(input("Enter Assignment Type ID (1 = Minor, 2 = Major): "))
-                    add_assignment(assignment_name, assignment_type, course_id)
-
-                elif option == "3":
                     student_id = int(input("Enter Student ID: "))
-                    assignment_id = int(input("Enter Assignment ID: "))
-                    grade = input("Enter New Grade: ")
-                    update_grade(student_id, course_id, assignment_id, grade)
-
+                    course_period_id = int(input("Enter Course Period ID: "))
+                    add_student_to_class(student_id, course_period_id)
+                elif option == "2":
+                    student_id = int(input("Enter Student ID: "))
+                    course_period_id = int(input("Enter Course Period ID: "))
+                    remove_student_from_class(course_period_id, student_id)
+                elif option == "3":
+                    class_name = input("Enter Class Name: ")
+                    teacher_id = int(input("Enter Teacher ID: "))
+                    room_id = int(input("Enter Room ID: "))
+                    period = int(input("Enter Period: "))
                 else:
-                    print("Invalid option. Please try again.")
+                    print("Invalid option. Try again.")
 
 if __name__ == "__main__":
     main()
