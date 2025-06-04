@@ -207,6 +207,40 @@ def remove_student_from_class(course_period_id, student_id):
         cursor.close()
         connection.close()
 
+
+def create_new_class(period, teacher_id, room_id, course_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(f"CALL CreateNewClass({period}, {teacher_id}, '{room_id}', {course_id});")
+    message = cursor.fetchone()
+
+    print("\nDatabase Response:\n" + "-" * 40)
+    print(message[0])
+    cursor.close()
+    connection.close()
+def get_available_resources(period):
+    connection = create_connection()
+    cursor = connection.cursor()
+    query_teachers = f"CALL GetAvailableTeachersForPeriod({period});"
+    cursor.execute(query_teachers)
+    teachers = cursor.fetchall()
+    query_rooms = f"CALL GetAvailableRoomsForPeriod({period});"
+    cursor.execute(query_rooms)
+    rooms = cursor.fetchall()
+    print("\nAvailable Teachers:\n" + "-" * 40)
+    for row in teachers:
+        print(f"Teacher ID: {row[0]}")
+        print(f"Name: {row[1]}")
+        print("-" * 40)
+    print("\nAvailable Rooms:\n" + "-" * 40)
+    for row in rooms:
+        print(f"Room: {row[0]}")
+        print("-" * 40)
+
+    cursor.close()
+    connection.close()
+
 def main():
     print("Welcome! Please log in.")
 
@@ -305,10 +339,23 @@ def main():
                     course_period_id = int(input("Enter Course Period ID: "))
                     remove_student_from_class(course_period_id, student_id)
                 elif option == "3":
-                    class_name = input("Enter Class Name: ")
-                    teacher_id = int(input("Enter Teacher ID: "))
-                    room_id = int(input("Enter Room ID: "))
                     period = int(input("Enter Period: "))
+                    available_teachers, available_rooms = get_available_resources(period)
+                    print("\nAvailable Teachers:\n" + "-" * 40)
+                    for teacher in available_teachers:
+                        print(f"Teacher ID: {teacher[0]} | Name: {teacher[1]}")
+                    print("\nAvailable Rooms:\n" + "-" * 40)
+                    for room in available_rooms:
+                        print(f"Room: {room[0]}")
+                    print("-" * 40)
+                    teacher_id = int(input("\nEnter Teacher ID from the list above: "))
+                    room_id = input("Enter Room ID from the list above: ")
+                    course_id = int(input("Enter Course ID: "))
+                    if (teacher_id,) in available_teachers and (room_id,) in available_rooms:
+                        print("\nTeacher and Room are available. Creating the class...\n")
+                        create_new_class(period, teacher_id, room_id, course_id)
+                    else:
+                        print("\nError: Either the teacher or room is unavailable for this period.\n")
                 else:
                     print("Invalid option. Try again.")
 
