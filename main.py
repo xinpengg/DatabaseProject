@@ -139,13 +139,28 @@ def get_students_in_course(course_id):
     return students
 
 
-def get_student_assignment_grades(course_id, assignment_id):
+def get_assignments_for_course(course_id):
     connection = create_connection()
     cursor = connection.cursor()
 
-    query = f"CALL GetStudentAssignmentGrades({course_id}, {assignment_id});"
+    query = f"CALL GetAssignmentsForCourse({course_id});"
     cursor.execute(query)
 
+    print("\nAssignments for Course ID:", course_id)
+    print("-" * 40)
+    for row in cursor:
+        print(f"Assignment ID: {row[0]}")
+        print(f"Assignment Name: {row[1]}")
+        print("-" * 40)
+
+    cursor.close()
+    connection.close()
+
+def get_student_assignment_grades(course_id, assignment_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+    query = f"CALL GetStudentAssignmentGrades({course_id}, {assignment_id});"
+    cursor.execute(query)
     print("\nStudent Assignment Grades:\n" + "-" * 40)
     for row in cursor:
         print(f"Student ID: {row[0]}")
@@ -239,9 +254,19 @@ def get_available_rooms(period):
     connection.close()
     return rooms
 
+def show_courses():
+    connection = create_connection()
+    cursor = connection.cursor()
+    cursor.execute("CALL ShowCourses();")
+    courses = cursor.fetchall()
+    print("\nAvailable Courses:\n" + "-" * 40)
+    for course in courses:
+        print(f"Course ID: {course[0]} | Course Name: {course[1]}")
+    print("-" * 40)
+    cursor.close()
+    connection.close()
 def main():
     print("Welcome! Please log in.")
-
     while True:
         user_type = input("Are you a Student, Teacher, or Administrator? (Type 'exit' to quit) ").strip().lower()
 
@@ -252,8 +277,9 @@ def main():
         if user_type not in ["student", "teacher", "administrator"]:
             print("Invalid input. Please enter 'Student', 'Teacher', or 'Administrator'.")
             continue
-
-        user_id = input(f"Enter your {user_type.capitalize()} ID: ")
+        user_id = None
+        if user_type in ["student", "teacher"]:
+            user_id = input(f"Enter your {user_type.capitalize()} ID: ")
 
         if user_type == "student":
             while True:
@@ -295,12 +321,13 @@ def main():
                 if option == "5":
                     print("Returning to main menu...")
                     break
-
+                get_schedule(user_type, user_id)
                 course_id = int(input("Enter Course ID: ")) if option in ["2", "3", "4"] else None
 
                 if option == "1":
                     get_schedule(user_type, user_id)
                 elif option == "2":
+                    get_assignments_for_course(course_id)
                     assignment_id = int(input("Enter Assignment ID: "))
                     get_student_assignment_grades(course_id, assignment_id)
                 elif option == "3":
@@ -308,7 +335,9 @@ def main():
                     assignment_type = int(input("Enter Assignment Type ID (1 = Minor, 2 = Major): "))
                     add_assignment(assignment_name, assignment_type, course_id)
                 elif option == "4":
+                    get_students_in_course(course_id)
                     student_id = int(input("Enter Student ID: "))
+                    get_assignments_for_course(course_id)
                     assignment_id = int(input("Enter Assignment ID: "))
                     grade = input("Enter New Grade: ")
                     update_grade(student_id, course_id, assignment_id, grade)
@@ -323,7 +352,6 @@ def main():
                 print("3. Create New Class")
                 print("4. Exit")
                 option = input("Select an option: ").strip()
-
                 if option == "4":
                     print("Returning to main menu...")
                     break
@@ -338,22 +366,18 @@ def main():
                     remove_student_from_class(course_period_id, student_id)
                 elif option == "3":
                     period = int(input("Enter Period: "))
-
                     available_teachers = get_available_teachers(period)
                     available_rooms = get_available_rooms(period)
-
                     print("\nAvailable Teachers:\n" + "-" * 40)
                     for teacher in available_teachers:
                         print(f"Teacher ID: {teacher[0]} | Name: {teacher[1]}")
-
+                    teacher_id = int(input("\nEnter Teacher ID from the list above: "))
                     print("\nAvailable Rooms:\n" + "-" * 40)
                     for room in available_rooms:
                         print(f"Room: {room[0]}")
-
                     print("-" * 40)
-
-                    teacher_id = int(input("\nEnter Teacher ID from the list above: "))
                     room_id = input("Enter Room ID from the list above: ")
+                    show_courses()
                     course_id = int(input("Enter Course ID: "))
                     print("\nTeacher and Room are available. Creating the class...\n")
                     create_new_class(period, teacher_id, room_id, course_id)
